@@ -1,16 +1,17 @@
 import type{Request,Response} from "express";
 import Job from "../models/job.model.js";
+import mongoose from "mongoose";
 
 const getJobs = async(req:Request,res:Response)=>{
 try{
 const jobs = await Job.find();    
-res.json({
+ return res.json({
     "message" : "Jobs fetched successfully",
     "jobs" : jobs
 });
 }
 catch(error){
-    res.status(500).json({
+    return res.status(500).json({
         "message" : "jobs fetching failed",
         "jobs" : error
     });
@@ -18,14 +19,37 @@ catch(error){
 };
 const createJob = async(req:Request , res:Response)=>{
     try{
+        const{title,company,description,location} = req.body;
+
+        if(!title?.trim() || !company?.trim() || !description?.trim() || !location?.trim() ){
+            return res.status(400).json({
+                message : "Plz send all required fields"
+            });
+        }
+
+        if(req.body.salary !== undefined && typeof req.body.salary !=="number" ){
+            return res.status(400).json({
+                message:"Salary should be a number"
+            })
+        }
+
+        if (
+        req.body.isRemote !== undefined &&
+        typeof req.body.isRemote !== "boolean"
+        ) {
+        return res.status(400).json({
+        message: "isRemote must be a boolean"
+        });
+        }
+
         const newJob= await Job.create(req.body);
-        res.status(201).json({
+        return res.status(201).json({
             "message": "Job created successfully",
             "job": newJob
         });
     }
     catch(error){
-        res.status(500).json({
+        return res.status(500).json({
             "message":"Job not created",
             error:error
         });
@@ -34,6 +58,49 @@ const createJob = async(req:Request , res:Response)=>{
 
 const updateJob = async(req:Request , res:Response )=>{
     try{
+        if (!mongoose.isValidObjectId(req.params.id)) {
+        return res.status(400).json({
+        message: "Invalid job ID"
+        });
+        }
+
+        if(Object.keys(req.body).length === 0){
+            return res.status(400).json({
+                message : "plz return atleast one field to update"
+            })
+        }
+
+        if (
+        req.body.salary !== undefined &&
+        typeof req.body.salary !== "number"
+        ) {
+        return res.status(400).json({
+        message: "Salary must be a number"
+        });
+        }
+
+        if (
+        req.body.isRemote !== undefined &&
+        typeof req.body.isRemote !== "boolean"
+        ) {
+        return res.status(400).json({
+        message: "isRemote must be a boolean"
+        });
+        }
+
+        const { title, company, description, location } = req.body;
+
+        if (
+        (title !== undefined && !title.trim()) ||
+        (company !== undefined && !company.trim()) ||
+        (description !== undefined && !description.trim()) ||
+        (location !== undefined && !location.trim())
+        ) {
+        return res.status(400).json({
+        message: "Fields cannot contain only spaces"
+        });
+        }
+
         const updated = await Job.findByIdAndUpdate(
             req.params.id,
             req.body,
@@ -46,17 +113,46 @@ const updateJob = async(req:Request , res:Response )=>{
             });
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             "message": "Job updated successfully",
             job:updated    
         });
     }
     catch(error){
-        res.status(500).json({
+        return res.status(500).json({
             "message" : "Job not updated",
             error:error
         });
     }
 };
 
-export {getJobs,createJob,updateJob};
+const deleteJob = async(req:Request , res:Response)=>{
+    try{
+        if(!mongoose.isValidObjectId(req.params.id)){
+            return res.status(400).json({
+              message : "invalid id" 
+            })
+        }
+        const deleted = await Job.findByIdAndDelete(req.params.id);
+        
+        if(!deleted){
+            return res.status(404).json({
+                message: "Job not found"
+            });
+        }
+         
+       return res.status(200).json({
+            message : "Job deleted successfully",
+            job : deleted
+        });
+    }
+    catch(error){
+       return res.status(500).json({
+            message : "failed to delete job",
+            error : error
+        });
+    }
+};
+
+
+export {getJobs,createJob,updateJob,deleteJob};
