@@ -91,13 +91,13 @@ const updateJob = async(req:Request , res:Response )=>{
         const { title, company, description, location } = req.body;
 
         if (
-        (title !== undefined && !title.trim()) ||
-        (company !== undefined && !company.trim()) ||
-        (description !== undefined && !description.trim()) ||
-        (location !== undefined && !location.trim())
+        (title !== undefined && (typeof title !== "string" || !title.trim())) ||
+        (company !== undefined && (typeof company !== "string" || !company.trim())) ||
+        (description !== undefined && (typeof description !== "string" || !description.trim())) ||
+        (location !== undefined && (typeof location !== "string" || !location.trim()))
         ) {
         return res.status(400).json({
-        message: "Fields cannot contain only spaces"
+          message: "String fields must contain valid text"
         });
         }
 
