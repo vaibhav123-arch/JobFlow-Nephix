@@ -2,6 +2,7 @@ import "dotenv/config"
 import express from "express";
 import jobRoutes from "./routes/job.routes.js";
 import connectDB from "./config/database.js";
+import errorMiddleware from "./middlewares/error.middleware.js";
 
 const app = express();
 app.use(express.json());
@@ -18,6 +19,8 @@ app.get('/api/health',(req,res)=>{
 
 
 app.use('/api/jobs',jobRoutes);
+
+app.use(errorMiddleware);
 
 const startServer = async()=>{
     await connectDB();

@@ -1,8 +1,8 @@
-import type{Request,Response} from "express";
+import type{Request,Response,NextFunction} from "express";
 import Job from "../models/job.model.js";
 import mongoose from "mongoose";
 
-const getJobs = async(req:Request,res:Response)=>{
+const getJobs = async(req:Request,res:Response,next:NextFunction)=>{
 try{
 const jobs = await Job.find();    
  return res.json({
@@ -19,17 +19,55 @@ catch(error){
 };
 const createJob = async(req:Request , res:Response)=>{
     try{
-        const{title,company,description,location} = req.body;
 
-        if(!title?.trim() || !company?.trim() || !description?.trim() || !location?.trim() ){
+      if (
+      !req.body ||
+      typeof req.body !== "object" ||
+      Array.isArray(req.body)
+      ) {
+      return res.status(400).json({
+      message: "Request body must be a valid object"
+       });
+       }
+
+        const allowedFields = [
+            "title",
+            "company",
+            "description",
+            "location",
+            "salary",
+            "isRemote"
+        ];
+
+        const receivedFields = Object.keys(req.body);
+
+        const invalidFields = receivedFields.some((field) => {
+            return !allowedFields.includes(field);
+        });
+
+        if (invalidFields) {
             return res.status(400).json({
-                message : "Plz send all required fields"
+                message: "Invalid fields provided"
             });
         }
+        
+        const{title,company,description,location} = req.body;
+    if (
+    typeof title !== "string" || !title.trim() ||
+    typeof company !== "string" || !company.trim() ||
+    typeof description !== "string" || !description.trim() ||
+    typeof location !== "string" || !location.trim()
+    ) {
+    return res.status(400).json({
+        message: "Please provide valid required fields"
+    });
+    }
 
-        if(req.body.salary !== undefined && typeof req.body.salary !=="number" ){
+        if(req.body.salary !== undefined && (typeof req.body.salary !== "number" ||
+        !Number.isFinite(req.body.salary) ||
+        req.body.salary < 0) ){
             return res.status(400).json({
-                message:"Salary should be a number"
+                message:"Salary should be a valid non negative number"
             })
         }
 
@@ -42,7 +80,15 @@ const createJob = async(req:Request , res:Response)=>{
         });
         }
 
-        const newJob= await Job.create(req.body);
+        const newJob = await Job.create({
+        title,
+        company,
+        description,
+        location,
+        salary: req.body.salary,
+        isRemote: req.body.isRemote
+        });
+
         return res.status(201).json({
             "message": "Job created successfully",
             "job": newJob
@@ -57,7 +103,19 @@ const createJob = async(req:Request , res:Response)=>{
 };
 
 const updateJob = async(req:Request , res:Response )=>{
+   
+
     try{
+        if (
+        !req.body ||
+        typeof req.body !== "object" ||
+        Array.isArray(req.body)
+        ) {
+        return res.status(400).json({
+        message: "Request body must be a valid object"
+        });
+        } 
+
         if (!mongoose.isValidObjectId(req.params.id)) {
         return res.status(400).json({
         message: "Invalid job ID"
@@ -70,13 +128,32 @@ const updateJob = async(req:Request , res:Response )=>{
             })
         }
 
-        if (
-        req.body.salary !== undefined &&
-        typeof req.body.salary !== "number"
-        ) {
-        return res.status(400).json({
-        message: "Salary must be a number"
-        });
+    const allowedFields = [
+    "title",
+    "company",
+    "description",
+    "location",
+    "salary",
+    "isRemote"
+    ];
+
+    const receivedFields = Object.keys(req.body);
+    const invalidFields = receivedFields.some((field) => {
+    return !allowedFields.includes(field);
+    });
+
+    if (invalidFields) {
+    return res.status(400).json({
+        message: "Invalid fields provided"
+    });
+    }
+
+       if(req.body.salary !== undefined && (typeof req.body.salary !== "number" ||
+        !Number.isFinite(req.body.salary) ||
+        req.body.salary < 0) ){
+            return res.status(400).json({
+                message:"Salary should be a valid non negative number"
+            })
         }
 
         if (
@@ -100,10 +177,16 @@ const updateJob = async(req:Request , res:Response )=>{
           message: "String fields must contain valid text"
         });
         }
+        
+        const updateData = Object.fromEntries(
+            Object.entries(req.body).filter(([key])=>
+             allowedFields.includes(key)
+            )
+        );
 
         const updated = await Job.findByIdAndUpdate(
             req.params.id,
-            req.body,
+            updateData,
             {new:true , runValidators:true}
         );
 
